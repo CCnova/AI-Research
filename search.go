@@ -1,6 +1,7 @@
 package main
 
 import (
+	"container/heap"
 	"fmt"
 )
 
@@ -21,6 +22,48 @@ type Problem struct {
 
 type Solution struct {
 	Actions []string // Actions to reach the goal state
+}
+
+type Item[T any] struct {
+	Value    *T
+	Priority int
+	Index    int
+}
+
+type PriorityQueue[T any] []*Item[T]
+
+func (pq PriorityQueue[T]) Len() int { return len(pq) }
+
+func (pq PriorityQueue[T]) Less(i, j int) bool {
+	return pq[i].Priority < pq[j].Priority
+}
+
+func (pq PriorityQueue[T]) Swap(i, j int) {
+	pq[i], pq[j] = pq[j], pq[i]
+	pq[i].Index = i
+	pq[j].Index = j
+}
+
+func (pq *PriorityQueue[T]) Push(x interface{}) {
+	n := len(*pq)
+	item := x.(*Item[T])
+	item.Index = n
+	*pq = append(*pq, item)
+}
+
+func (pq *PriorityQueue[T]) Pop() interface{} {
+	old := *pq
+	n := len(old)
+	item := old[n-1]
+	item.Index = -1
+	*pq = old[0 : n-1]
+	return *item
+}
+
+func (pq *PriorityQueue[T]) Update(item *Item[T], value *T, priority int) {
+	item.Value = value
+	item.Priority = priority
+	heap.Fix(pq, item.Index)
 }
 
 func PopFifo[T any](arr *[]T) (T, error) {
@@ -122,6 +165,44 @@ func BreadthFirstSearch(problem Problem) (*Solution, error) {
 					return SolutionPath(childNode), nil
 				}
 				frontier = append(frontier, childNode)
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("No solution found")
+}
+
+func mapItemsToNodes(items []*Item[Node]) []Node {
+	nodes := []Node{}
+	for _, item := range items {
+		nodes = append(nodes, *item.Value)
+	}
+	return nodes
+}
+
+func UniformCostSearch(problem Problem) (*Solution, error) {
+	frontier := &PriorityQueue[Node]{&Item[Node]{Value: &problem.InitialState, Priority: 0}}
+	heap.Init(frontier)
+	explored := map[string]bool{}
+
+	for len(*frontier) > 0 {
+		node := heap.Pop(frontier).(*Item[Node]).Value
+		if problem.GoalTest(node.State) {
+			return SolutionPath(*node), nil
+		}
+		explored[node.State] = true
+		for _, action := range problem.Actions(node.State) {
+			child := ChildNode(problem, *node, action)
+			if !explored[child.State] && !IsStateInList(child.State, mapItemsToNodes(*frontier)) {
+				heap.Push(frontier, &Item[Node]{Value: &child, Priority: child.PathCost})
+			} else {
+				for _, item := range *frontier {
+					if item.Value.State == child.State && item.Priority > child.PathCost {
+						item.Priority = child.PathCost
+						item.Value = &child
+						heap.Fix(frontier, item.Index)
+					}
+				}
 			}
 		}
 	}
