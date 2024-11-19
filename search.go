@@ -209,3 +209,34 @@ func UniformCostSearch(problem Problem) (*Solution, error) {
 
 	return nil, fmt.Errorf("No solution found")
 }
+
+func DepthLimitedSearch(problem Problem, limit int) (*Solution, error) {
+	return RecursiveDLS(problem.InitialState, problem, limit)
+}
+
+func RecursiveDLS(node Node, problem Problem, limit int) (*Solution, error) {
+	if problem.GoalTest(node.State) {
+		return SolutionPath(node), nil
+	}
+
+	if limit == 0 {
+		return nil, fmt.Errorf("CUTOFF")
+	}
+
+	cutoffOccurred := false
+	for _, action := range problem.Actions(node.State) {
+		child := ChildNode(problem, node, action)
+		solution, error := RecursiveDLS(child, problem, limit-1)
+		if error != nil && error.Error() == "CUTOFF" {
+			cutoffOccurred = true
+		} else if solution != nil {
+			return solution, nil
+		}
+	}
+
+	if cutoffOccurred {
+		return nil, fmt.Errorf("CUTOFF")
+	} else {
+		return nil, fmt.Errorf("No solution found")
+	}
+}
