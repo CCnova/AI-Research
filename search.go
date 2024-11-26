@@ -240,3 +240,60 @@ func RecursiveDLS(node Node, problem Problem, limit int) (*Solution, error) {
 		return nil, fmt.Errorf("No solution found")
 	}
 }
+
+func GreedyBestFirstTreeSearch(problem Problem, h func(string) int) (*Solution, error) {
+	frontier := &PriorityQueue[Node]{&Item[Node]{Value: &problem.InitialState, Priority: h(problem.InitialState.State)}}
+	heap.Init(frontier)
+
+	for len(*frontier) > 0 {
+		node := heap.Pop(frontier).(*Item[Node]).Value
+		if problem.GoalTest(node.State) {
+			return SolutionPath(*node), nil
+		}
+		for _, action := range problem.Actions(node.State) {
+			child := ChildNode(problem, *node, action)
+			heap.Push(frontier, &Item[Node]{Value: &child, Priority: h(child.State)})
+			for _, item := range *frontier {
+				if item.Value.State == child.State && item.Priority > h(child.State) {
+					item.Priority = h(child.State)
+					item.Value = &child
+					heap.Fix(frontier, item.Index)
+				}
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("No solution found")
+}
+
+func GreedyBestFirstGraphSearch(problem Problem, h func(string) int) (*Solution, error) {
+	frontier := &PriorityQueue[Node]{&Item[Node]{Value: &problem.InitialState, Priority: h(problem.InitialState.State)}}
+	heap.Init(frontier)
+	explored := map[string]bool{}
+
+	for len(*frontier) > 0 {
+		node := heap.Pop(frontier).(*Item[Node]).Value
+		if problem.GoalTest(node.State) {
+			return SolutionPath(*node), nil
+		}
+
+		explored[node.State] = true
+
+		for _, action := range problem.Actions(node.State) {
+			child := ChildNode(problem, *node, action)
+			if !explored[child.State] && !IsStateInList(child.State, mapItemsToNodes(*frontier)) {
+				heap.Push(frontier, &Item[Node]{Value: &child, Priority: h(child.State)})
+			} else {
+				for _, item := range *frontier {
+					if item.Value.State == child.State && item.Priority > h(child.State) {
+						item.Priority = h(child.State)
+						item.Value = &child
+						heap.Fix(frontier, item.Index)
+					}
+				}
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("No solution found")
+}
