@@ -297,3 +297,17 @@ func GreedyBestFirstGraphSearch(problem Problem, h func(string) int) (*Solution,
 
 	return nil, fmt.Errorf("No solution found")
 }
+
+func IterativeDeepeningSearch(problem Problem) (*Solution, error) {
+	L := 0
+	for {
+		result, error := DepthLimitedSearch(problem, L)
+		if error == nil {
+			return result, nil
+		}
+		if error.Error() != "CUTOFF" {
+			return nil, error
+		}
+		L++
+	}
+}
